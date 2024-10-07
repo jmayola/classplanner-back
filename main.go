@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,14 +12,14 @@ import (
 )
 
 type User struct {
-	Name     string `json:"user_name"`
-	Password string `json:"user_password"`
-	LastName string `json:"user_lastname"`
-	Mail     string `json:"user_mail"`
-	Type     string `json:"user_type"`
-	Alias    string `json:"user_alias"`
+	Name       string `json:"user_name"`
+	Password   string `json:"user_password"`
+	RePassword string `json:"user_password_confirmation"`
+	LastName   string `json:"user_lastname"`
+	Mail       string `json:"user_mail"`
+	Type       string `json:"user_type"`
+	Alias      string `json:"user_alias"`
 }
-
 
 func setupRouter() *gin.Engine {
 	//declaring database connection
@@ -38,6 +39,7 @@ func setupRouter() *gin.Engine {
 	// login
 
 	r.POST("/login", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
 		var newUser User
 		//getting data sended
 		if err := c.BindJSON(&newUser); err != nil {
@@ -64,10 +66,16 @@ func setupRouter() *gin.Engine {
 	// registerrr
 
 	r.POST("/register", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
 		var newUser User
 		//getting data sended
 		if err := c.BindJSON(&newUser); err != nil {
 			return
+		}
+		fmt.Printf("datos: %s, %s, %s, %s, %s, %s,%s", newUser.Name, newUser.LastName, newUser.Password, newUser.RePassword, newUser.Mail, newUser.Type, "")
+		if newUser.Password != newUser.RePassword {
+			fmt.Print("las contraseñas no coinciden papi")
+			c.String(http.StatusForbidden, "Las contraseñas no coinciden")
 		}
 		//preparing statement
 		users, err := db.Prepare("INSERT INTO `users` (`id_user`, `user_name`, `user_lastname`, `user_password`, `user_mail`, `user_type`, `user_alias`) VALUES (NULL, ?, ?, ?, ?, ?, ?);")
@@ -79,7 +87,8 @@ func setupRouter() *gin.Engine {
 
 		_, err = users.Exec(newUser.Name, newUser.LastName, newUser.Password, newUser.Mail, newUser.Type, "")
 		if err != nil {
-			c.Status(403)
+			fmt.Print(err.Error())
+			c.String(http.StatusForbidden, err.Error())
 		} else {
 			c.String(http.StatusAccepted, "Ingreso Exitoso ")
 		}
@@ -87,24 +96,24 @@ func setupRouter() *gin.Engine {
 	return r
 }
 func CORSMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
+	return func(c *gin.Context) {
 
-        c.Header("Access-Control-Allow-Origin", "*")
-        c.Header("Access-Control-Allow-Credentials", "true")
-        c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-        c.Header("Access-Control-Allow-Methods", "POST,HEAD,PATCH, OPTIONS, GET, PUT")
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Header("Access-Control-Allow-Methods", "POST,HEAD,PATCH, OPTIONS, GET, PUT")
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
 func main() {
 	r := setupRouter()
 	// Listen and Server in 0.0.0.0:8080
-	r.Use(CORSMiddleware())	
+	r.Use(CORSMiddleware())
 	r.Run(":3000")
 }
