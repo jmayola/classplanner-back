@@ -1,16 +1,21 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
+	"fmt" // formato para strings
 
-	"github.com/gin-gonic/gin"
+	"net/http" // manejador de http (socket)
 
-	"database/sql"
+	"github.com/gin-gonic/gin" // server backend y rest api para el manejo de HTTP request
 
-	_ "github.com/go-sql-driver/mysql"
+	"database/sql" // libreria requerida por go-sql-driver
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie" //administrador de sesiones
+
+	_ "github.com/go-sql-driver/mysql" //driver de base de datos
 )
 
+// defining user attributes disambling json object
 type User struct {
 	Name       string `json:"user_name"`
 	Password   string `json:"user_password"`
@@ -29,6 +34,8 @@ func setupRouter() *gin.Engine {
 	}
 
 	r := gin.Default()
+	store := cookie.NewStore([]byte("aoushd1q2y387hiawru12rfsdiuhfa93htgw8rg"))
+	r.Use(sessions.Sessions("users", store))
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
@@ -39,9 +46,15 @@ func setupRouter() *gin.Engine {
 	// login
 
 	r.POST("/login", func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Header("Access-Control-Allow-Credentials", "true")
 		var newUser User
 		//getting data sended
+		session := sessions.Default(c)
+
+		if session.Get("user_name") != nil {
+			c.Status(403)
+		}
 		if err := c.BindJSON(&newUser); err != nil {
 			return
 		}
@@ -57,7 +70,10 @@ func setupRouter() *gin.Engine {
 		if err != nil {
 			c.String(http.StatusForbidden, "Los datos ingresados no son correctos")
 		} else {
+			session.Set("user_name", outp)
+			session.Save()
 			c.String(http.StatusAccepted, "Ingreso Exitoso"+outp)
+
 		}
 	})
 
@@ -66,7 +82,8 @@ func setupRouter() *gin.Engine {
 	// registerrr
 
 	r.POST("/register", func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Header("Access-Control-Allow-Credentials", "true")
 		var newUser User
 		//getting data sended
 		if err := c.BindJSON(&newUser); err != nil {
@@ -98,7 +115,7 @@ func setupRouter() *gin.Engine {
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Header("Access-Control-Allow-Methods", "POST,HEAD,PATCH, OPTIONS, GET, PUT")
