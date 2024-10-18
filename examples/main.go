@@ -1,13 +1,28 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 )
 
-var error string = "pena sex 10"
-
+func createHash(data string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(data))
+	hash := hasher.Sum(nil)
+	val := hex.EncodeToString(hash)
+	hasher.Reset()
+	fmt.Println(val)
+	return val
+}
+func verifHash(val string, enc string) {
+	if createHash(val) == enc {
+		fmt.Printf("son iguales")
+	} else {
+		fmt.Printf("no son iguales")
+	}
+}
 func main() {
-	a, b := fmt.Scanf(error)
-	fmt.Printf(a)
-	fmt.Printf(b)
+	enc := createHash("holamama")
+	verifHash("holama", enc)
 }

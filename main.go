@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt" // formato para strings
-
+	"fmt"      // formato para strings
 	"net/http" // manejador de http (socket)
 
-	"github.com/gin-gonic/gin" // server backend y rest api para el manejo de HTTP request
-
 	"database/sql" // libreria requerida por go-sql-driver
+
+	"github.com/gin-gonic/gin" // server backend y rest api para el manejo de HTTP request
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie" //administrador de sesiones
@@ -32,7 +31,6 @@ func setupRouter() *gin.Engine {
 	if err != nil {
 		panic(err.Error())
 	}
-
 	r := gin.Default()
 	store := cookie.NewStore([]byte("aoushd1q2y387hiawru12rfsdiuhfa93htgw8rg"))
 	r.Use(sessions.Sessions("users", store))
@@ -51,9 +49,11 @@ func setupRouter() *gin.Engine {
 		var newUser User
 		//getting data sended
 		session := sessions.Default(c)
-
-		if session.Get("user_name") != nil {
-			c.Status(403)
+		userName := session.Get("username")
+		fmt.Print(userName)
+		if userName != nil {
+			c.String(http.StatusForbidden, "Ya tienes una sesión ingresada.")
+			return
 		}
 		if err := c.BindJSON(&newUser); err != nil {
 			return
@@ -66,11 +66,11 @@ func setupRouter() *gin.Engine {
 		defer users.Close()
 		//setting query output
 		var outp string
-		err = users.QueryRow(newUser.Mail, newUser.Password).Scan(&outp)
+		err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&outp)
 		if err != nil {
 			c.String(http.StatusForbidden, "Los datos ingresados no son correctos")
 		} else {
-			session.Set("user_name", outp)
+			session.Set("username", outp)
 			session.Save()
 			c.String(http.StatusAccepted, "Ingreso Exitoso"+outp)
 
@@ -102,7 +102,7 @@ func setupRouter() *gin.Engine {
 		defer users.Close()
 		//setting query output
 
-		_, err = users.Exec(newUser.Name, newUser.LastName, newUser.Password, newUser.Mail, newUser.Type, "")
+		_, err = users.Exec(newUser.Name, newUser.LastName, createHash(newUser.Password), newUser.Mail, newUser.Type, "")
 		if err != nil {
 			fmt.Print(err.Error())
 			c.String(http.StatusForbidden, err.Error())
