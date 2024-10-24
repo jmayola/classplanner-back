@@ -4,7 +4,7 @@ import (
 	"fmt"      // formato para strings
 	"net/http" // manejador de http (socket)
 
-	"database/sql" // libreria requerida por go-sql-driver
+	// libreria requerida por go-sql-driver
 
 	"github.com/gin-gonic/gin" // server backend y rest api para el manejo de HTTP request
 
@@ -27,22 +27,15 @@ type User struct {
 
 func setupRouter() *gin.Engine {
 	//declaring database connection
-	db, err := sql.Open("mysql", "root@tcp(localhost:3306)/classplanner")
-	if err != nil {
-		panic(err.Error())
-	}
+	db := database()
 	r := gin.Default()
 	store := cookie.NewStore([]byte("aoushd1q2y387hiawru12rfsdiuhfa93htgw8rg"))
 	r.Use(sessions.Sessions("users", store))
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(http.StatusOK, "pong")
-	})
-
 	// login
 	// login
 	// login
-
+	r.GET("/classes", createClass)
 	r.POST("/login", func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Header("Access-Control-Allow-Credentials", "true")
@@ -59,20 +52,22 @@ func setupRouter() *gin.Engine {
 			return
 		}
 		//preparing statement
-		users, err := db.Prepare("SELECT user_name FROM users WHERE user_mail=? AND user_password=?")
+		users, err := db.Prepare("SELECT user_name,user_type FROM users WHERE user_mail=? AND user_password=?")
 		if err != nil {
 			c.Status(505)
 		}
 		defer users.Close()
 		//setting query output
-		var outp string
-		err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&outp)
+		var username string
+		var user_type string
+		err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&username, &user_type)
 		if err != nil {
 			c.String(http.StatusForbidden, "Los datos ingresados no son correctos")
 		} else {
-			session.Set("username", outp)
+			session.Set("username", username)
+			session.Set("user_type", user_type)
 			session.Save()
-			c.String(http.StatusAccepted, "Ingreso Exitoso"+outp)
+			c.String(http.StatusAccepted, user_type)
 
 		}
 	})
@@ -86,6 +81,13 @@ func setupRouter() *gin.Engine {
 		c.Header("Access-Control-Allow-Credentials", "true")
 		var newUser User
 		//getting data sended
+		session := sessions.Default(c)
+		userName := session.Get("username")
+		fmt.Print(userName)
+		if userName != nil {
+			c.String(http.StatusForbidden, "Ya tienes una sesión ingresada.")
+			return
+		}
 		if err := c.BindJSON(&newUser); err != nil {
 			return
 		}
@@ -105,9 +107,11 @@ func setupRouter() *gin.Engine {
 		_, err = users.Exec(newUser.Name, newUser.LastName, createHash(newUser.Password), newUser.Mail, newUser.Type, "")
 		if err != nil {
 			fmt.Print(err.Error())
-			c.String(http.StatusForbidden, err.Error())
+			c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
 		} else {
-			c.String(http.StatusAccepted, "Ingreso Exitoso ")
+			session.Set("username", newUser.Name)
+			session.Set("user_type", newUser.Type)
+			c.String(http.StatusAccepted, newUser.Type)
 		}
 	})
 	return r
