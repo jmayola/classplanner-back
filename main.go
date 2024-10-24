@@ -35,6 +35,7 @@ func setupRouter() *gin.Engine {
 	// login
 	// login
 	// login
+	r.GET("/user", getUser)
 	r.GET("/classes", createClass)
 	r.POST("/login", func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
