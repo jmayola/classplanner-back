@@ -36,7 +36,7 @@ func setupRouter() *gin.Engine {
 	// login
 	// login
 	r.GET("/user", getUser)
-	r.GET("/classes", createClass)
+	r.GET("/classes", getClasses)
 	r.POST("/login", func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Header("Access-Control-Allow-Credentials", "true")
@@ -53,22 +53,27 @@ func setupRouter() *gin.Engine {
 			return
 		}
 		//preparing statement
-		users, err := db.Prepare("SELECT user_name,user_type FROM users WHERE user_mail=? AND user_password=?")
+		users, err := db.Prepare("SELECT user_name, user_lastname,user_mail,user_alias,user_type,id_user FROM users WHERE user_mail=? AND user_password=?")
 		if err != nil {
 			c.Status(505)
 		}
 		defer users.Close()
 		//setting query output
-		var username string
-		var user_type string
-		err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&username, &user_type)
+		var user User
+		var id = 0
+		err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&user.Name, &user.LastName, &user.Mail, &user.Alias, &user.Type, &id)
 		if err != nil {
+			fmt.Println(err)
 			c.String(http.StatusForbidden, "Los datos ingresados no son correctos")
 		} else {
-			session.Set("username", username)
-			session.Set("user_type", user_type)
+			session.Set("username", user.Name)
+			session.Set("user_lastname", user.LastName)
+			session.Set("user_type", user.Type)
+			session.Set("user_mail", user.Mail)
+			session.Set("user_alias", user.Alias)
+			session.Set("id_user", id)
 			session.Save()
-			c.String(http.StatusAccepted, user_type)
+			c.String(http.StatusAccepted, user.Name)
 
 		}
 	})
@@ -111,7 +116,11 @@ func setupRouter() *gin.Engine {
 			c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
 		} else {
 			session.Set("username", newUser.Name)
+			session.Set("user_lastname", newUser.LastName)
 			session.Set("user_type", newUser.Type)
+			session.Set("user_mail", newUser.Mail)
+			session.Set("user_alias", newUser.Alias)
+			session.Save()
 			c.String(http.StatusAccepted, newUser.Type)
 		}
 	})
