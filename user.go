@@ -23,3 +23,17 @@ func getUser(c *gin.Context) {
 		c.JSON(200, gin.H{"username": username, "user_type": user_type})
 	}
 }
+func deleteUser(c *gin.Context) {
+	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Header("Access-Control-Allow-Credentials", "true")
+
+	session := sessions.Default(c)
+	username := session.Get("username")
+	if username == nil {
+		c.String(http.StatusForbidden, "No tienes una Sesión iniciada.")
+	} else {
+		session.Clear()
+		session.Save()
+		c.String(http.StatusAccepted, "Has Salido de la sesión.")
+	}
+}

@@ -21,29 +21,30 @@ func createClass(c *gin.Context) {
 	db := database()
 	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 	c.Header("Access-Control-Allow-Credentials", "true")
-	var newUser User
-	//getting data sended
+	var newClass Classes
 	session := sessions.Default(c)
-	// userName := session.Get("username")
-	// user_type := session.Get("user_type")
-
-	//preparing statement
-	//INSERT INTO `classes` (`id_class`, `class_name`, `class_profesor`, `class_curso`, `class_color`, `class_token`) VALUES (NULL, 'Artes Visuales', '28', '7mo 2da', '#992233', 'as123sda');
-	users, err := db.Prepare("INSERT INTO `classes` (`id_user`, `user_name`, `user_lastname`, `user_password`, `user_mail`, `user_type`, `user_alias`) VALUES (NULL, ?, ?, ?, ?, ?, ?);")
-	if err != nil {
-		c.Status(505)
+	//getting data sended
+	if err := c.BindJSON(&newClass); err != nil {
+		c.String(http.StatusForbidden, "Debe enviar datos para poder agregar una clase.")
 	}
-	defer users.Close()
+	if newClass.Name == "" || newClass.Curso == "" || newClass.Color == "" || newClass.Token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos obligatorios."})
+		return
+	}
+	//preparing statement
+	ClassN, err := db.Prepare("INSERT INTO `classes` (`id_class`, `class_name`, `class_profesor`, `class_curso`, `class_color`, `class_token`) VALUES (NULL, ?, ?, ?, ?, ?)")
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+	}
+	defer ClassN.Close()
 	//setting query output
 
-	_, err = users.Exec(newUser.Name, newUser.LastName, createHash(newUser.Password), newUser.Mail, newUser.Type, "")
+	_, err = ClassN.Exec(newClass.Name, session.Get("id_user"), newClass.Curso, newClass.Color, newClass.Token)
 	if err != nil {
 		fmt.Print(err.Error())
 		c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
 	} else {
-		session.Set("username", newUser.Name)
-		session.Set("user_type", newUser.Type)
-		c.String(http.StatusAccepted, newUser.Type)
+		c.String(http.StatusAccepted, "Clase creada.")
 	}
 }
 func getClasses(c *gin.Context) {
@@ -56,18 +57,28 @@ func getClasses(c *gin.Context) {
 	// user_type := session.Get("user_type")
 	//
 	//preparing statement
-	classes, err := db.Prepare("SELECT users.id_user, classes.class_name, classes.class_curso FROM class_users INNER JOIN users ON users.id_user=class_users.id_user INNER JOIN classes ON classes.id_class=class_users.id_class WHERE users.id_user=?")
+	classes, err := db.Prepare("SELECT classes.id_class, classes.class_name, classes.class_profesor, classes.class_curso, classes.class_color, classes.class_token FROM class_users INNER JOIN users ON users.id_user=class_users.id_user INNER JOIN classes ON classes.id_class=class_users.id_class WHERE users.id_user=?")
 	if err != nil {
 		c.Status(505)
 	}
 	defer classes.Close()
 	//setting query output
-	var class Classes
-	err = classes.QueryRow(session.Get("id_user")).Scan(&class)
+	var classList []Classes
+	rows, err := classes.Query(session.Get("id_user"))
+
 	if err != nil {
+		rows.Close()
 		fmt.Print(err.Error())
-		c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
+		c.String(http.StatusBadRequest, "Error al cargar los datos de clases.")
 	} else {
-		c.JSON(202, class)
+		for rows.Next() {
+			var class Classes
+			if err := rows.Scan(&class.ID, &class.Name, &class.Profesor, &class.Curso, &class.Color, &class.Token); err != nil {
+				fmt.Println("Error al escanear la fila:", err)
+				continue // if there is a error, we just keep with the next one
+			}
+			classList = append(classList, class)
+		}
+		c.JSON(202, classList)
 	}
 }
