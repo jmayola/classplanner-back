@@ -85,15 +85,15 @@ func getTasks(c *gin.Context) {
 			continue
 		}
 
-		formated, err := time.Parse("2006-01-02 15:04:05", string(createdOn))
-		if err != nil {
-			Task.Creado = ""
-		} else {
-			Task.Creado = formated.Format(time.DateTime)
-		}
+		formated, _ := time.Parse("2006-01-02 15:04:05", string(createdOn))
+		Task.Creado = formated.Format(time.DateTime)
 
-		formated2, _ := time.Parse("2006-01-02 15:04:05", string(deliverUntil))
-		Task.Limite = formated2.Format(time.DateTime)
+		formated2, err := time.Parse("2006-01-02 15:04:05", string(deliverUntil))
+		if err != nil {
+			Task.Limite = "Sin Limite"
+		} else {
+			Task.Limite = formated2.Format(time.DateTime)
+		}
 		TaskList = append(TaskList, Task)
 	}
 
