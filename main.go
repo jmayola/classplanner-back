@@ -26,6 +26,13 @@ func setupRouter() *gin.Engine {
 	r.GET("/tasks", getTasks)
 	r.POST("/tasks", createTask)
 
+	//submission
+	r.GET("/submission", getSubmissions)
+	r.POST("/submission", createSubmission)
+
+	//submission
+	r.GET("/comments:id_task", getComments)
+	r.POST("/comments", createComment)
 	//user
 	r.GET("/user", getUser)
 	r.DELETE("/user", deleteUser)
