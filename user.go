@@ -86,13 +86,7 @@ func register(c *gin.Context) {
 		fmt.Print(err.Error())
 		c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
 	} else {
-		session.Set("username", newUser.Name)
-		session.Set("user_lastname", newUser.LastName)
-		session.Set("user_type", newUser.Type)
-		session.Set("user_mail", newUser.Mail)
-		session.Set("user_alias", newUser.Alias)
-		session.Save()
-		c.String(http.StatusAccepted, newUser.Type)
+		c.String(http.StatusAccepted, "La cuenta ha sido registrada")
 	}
 }
 func login(c *gin.Context) {
