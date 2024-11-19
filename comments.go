@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
@@ -9,16 +10,18 @@ import (
 )
 
 type Comment struct {
-	ID       int64  `json:"id"`
-	Task     int64  `json:"id_task"`
-	Text     string `json:"text"`
-	UserName string `json:"userName"`
-	Time     string `json:"time"`
+	ID         int64          `json:"id"`
+	Task       int64          `json:"id_task"`
+	Text       string         `json:"text"`
+	UserName   string         `json:"userName"`
+	Time       string         `json:"time"`
+	User_photo sql.NullString `json:"user_photo"`
 }
 
 func createComment(c *gin.Context) {
 	db := database()
-
+	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Header("Access-Control-Allow-Credentials", "true")
 	var newComment Comment
 	session := sessions.Default(c)
 
@@ -26,14 +29,8 @@ func createComment(c *gin.Context) {
 		c.String(http.StatusBadRequest, "El comentario no puede estar vacío")
 		return
 	}
-	// Obtener los datos del usuario desde la sesión o desde el body
-	userName := session.Get("user_name") // Este es un ejemplo, puedes adaptarlo a tu lógica
-	if userName == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
-		return
-	}
 
-	Comment, err := db.Prepare("INSERT INTO `comments` (`id_comment`, `id_user`, `id_task`, `comment`, `created_on`) VALUES (NULL, ?, ?, ?, NULL);")
+	Comment, err := db.Prepare("INSERT INTO `comments` (`id_comment`, `id_user`, `id_task`, `comment`) VALUES (NULL, ?, ?, ?);")
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
@@ -52,17 +49,17 @@ func createComment(c *gin.Context) {
 func getComments(c *gin.Context) {
 	// Establecer la conexión a la base de datos
 	db := database()
-
+	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Header("Access-Control-Allow-Credentials", "true")
 	// Obtener el ID de la tarea desde los parámetros de la URL
-	taskID := c.Param("id_task")
+	taskID := c.DefaultQuery("id_task", "")
 	if taskID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "El ID de la tarea es obligatorio"})
 		return
 	}
-
 	// Preparar la consulta SQL para obtener los comentarios de la tarea
 	query := `
-		SELECT id_comment, id_task, comment, created_on, users.user_name 
+		SELECT id_comment, id_task, comment, created_on, users.user_name, users.user_photo 
 		FROM comments 
 		INNER JOIN users ON comments.id_user = users.id_user 
 		WHERE id_task = ?
@@ -85,9 +82,8 @@ func getComments(c *gin.Context) {
 	for rows.Next() {
 		var comment Comment
 		var createdOn []byte
-
 		// Escanear cada fila de resultados
-		if err := rows.Scan(&comment.ID, &comment.Task, &comment.Text, &createdOn, &comment.UserName); err != nil {
+		if err := rows.Scan(&comment.ID, &comment.Task, &comment.Text, &createdOn, &comment.UserName, &comment.User_photo); err != nil {
 			fmt.Println("Error al escanear fila:", err)
 			continue
 		}
@@ -106,5 +102,5 @@ func getComments(c *gin.Context) {
 	}
 
 	// Devolver los comentarios en la respuesta
-	c.JSON(http.StatusOK, gin.H{"comments": comments})
+	c.JSON(http.StatusOK, comments)
 }

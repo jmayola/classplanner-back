@@ -105,7 +105,7 @@ func login(c *gin.Context) {
 		return
 	}
 	//preparing statement
-	users, err := db.Prepare("SELECT user_name, user_lastname,user_mail,user_alias,user_type,id_user,user_photo FROM users WHERE user_mail=? AND user_password=?")
+	users, err := db.Prepare("SELECT user_name, user_lastname,user_mail,user_alias,user_type,id_user FROM users WHERE user_mail=? AND user_password=?")
 	if err != nil {
 		c.Status(505)
 	}
@@ -113,7 +113,7 @@ func login(c *gin.Context) {
 	//setting query output
 	var user User
 	var id = 0
-	err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&user.Name, &user.LastName, &user.Mail, &user.Alias, &user.Type, &id, &user.Photo)
+	err = users.QueryRow(newUser.Mail, createHash(newUser.Password)).Scan(&user.Name, &user.LastName, &user.Mail, &user.Alias, &user.Type, &id)
 	if err != nil {
 		fmt.Println(err)
 		c.String(http.StatusForbidden, "Los datos ingresados no son correctos")
@@ -124,7 +124,6 @@ func login(c *gin.Context) {
 		session.Set("user_mail", user.Mail)
 		session.Set("user_alias", user.Alias)
 		session.Set("id_user", id)
-		session.Set("user_photo", user.Photo)
 		session.Save()
 		c.JSON(http.StatusAccepted, gin.H{"user_name": user.Name, "user_type": user.Type})
 

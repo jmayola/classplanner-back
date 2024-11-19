@@ -82,3 +82,49 @@ func getClasses(c *gin.Context) {
 		c.JSON(202, classList)
 	}
 }
+func joinClass(c *gin.Context) {
+	db := database()
+	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Header("Access-Control-Allow-Credentials", "true")
+	var class_token Classes
+	session := sessions.Default(c)
+	//getting data sended
+
+	if err := c.BindJSON(&class_token); err != nil {
+		c.String(http.StatusForbidden, "Debe enviar datos para poder ser añadido a una clase.")
+	}
+	if class_token.Token == "" {
+		c.String(http.StatusBadRequest, "No puedes ingresar campos nulos.")
+		return
+	}
+	//getting class_id from token
+	classId, err := db.Prepare("SELECT classes.id_class FROM `classes` WHERE classes.class_token=?")
+	if err != nil {
+		fmt.Println(err.Error())
+		c.String(404, err.Error())
+	}
+	defer classId.Close()
+	//getting id class
+	var class_id Classes
+	err = classId.QueryRow(class_token.Token).Scan(&class_id.ID)
+	if err != nil {
+		fmt.Println(err.Error())
+		c.String(404, "No existe esa clase.")
+	}
+	defer classId.Close()
+
+	//preparing statement
+	NewMember, err := db.Prepare("INSERT INTO `class_users` (`id`, `id_user`, `id_class`) VALUES (NULL, ?, ?);")
+	if err != nil {
+		c.String(http.StatusForbidden, "Ya has sido añadido a la clase.")
+	}
+	defer NewMember.Close()
+	//setting query output
+	_, err = NewMember.Exec(session.Get("id_user"), class_id.ID)
+	if err != nil {
+		fmt.Print(err.Error())
+		c.String(http.StatusForbidden, "La cuenta ingresada o la clase no exiten.")
+	} else {
+		c.String(http.StatusAccepted, "Has sido añadido a la clase.")
+	}
+}
