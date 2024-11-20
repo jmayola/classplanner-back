@@ -57,6 +57,37 @@ func getClasses(c *gin.Context) {
 	// user_type := session.Get("user_type")
 	//
 	//preparing statement
+	if session.Get("user_type") == "docente" {
+		classes, err := db.Prepare("SELECT classes.id_class, classes.class_name, classes.class_profesor, classes.class_curso, classes.class_color, classes.class_token FROM classes WHERE classes.class_profesor=?")
+		if err != nil {
+			c.Status(505)
+		}
+		defer classes.Close()
+		//setting query output
+		var classList []Classes
+		rows, err := classes.Query(session.Get("id_user"))
+
+		if err != nil {
+			rows.Close()
+			fmt.Print(err.Error())
+			c.String(http.StatusBadRequest, "Error al cargar los datos de clases.")
+		} else {
+			for rows.Next() {
+				var class Classes
+				if err := rows.Scan(&class.ID, &class.Name, &class.Profesor, &class.Curso, &class.Color, &class.Token); err != nil {
+					fmt.Println("Error al escanear la fila:", err)
+					continue // if there is a error, we just keep with the next one
+				}
+				classList = append(classList, class)
+			}
+			c.JSON(202, classList)
+		}
+	}
+
+	// end of teacher
+	// end of teacher
+	// end of teacher
+	// end of teacher
 	classes, err := db.Prepare("SELECT classes.id_class, classes.class_name, classes.class_profesor, classes.class_curso, classes.class_color, classes.class_token FROM class_users INNER JOIN users ON users.id_user=class_users.id_user INNER JOIN classes ON classes.id_class=class_users.id_class WHERE users.id_user=?")
 	if err != nil {
 		c.Status(505)
