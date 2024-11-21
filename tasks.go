@@ -11,7 +11,7 @@ import (
 
 type Tasks struct {
 	ID          int16  `json:"id_task"`
-	Clase       int16  `json:"id_class"`
+	Clase       int    `json:"id_class"`
 	Titulo      string `json:"title"`
 	Description string `json:"description"`
 	Creado      string `json:"created_on"`
@@ -22,31 +22,40 @@ func createTask(c *gin.Context) {
 	db := database()
 	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 	c.Header("Access-Control-Allow-Credentials", "true")
-	var newClass Classes
-	session := sessions.Default(c)
+	var newTask Tasks
 	//getting data sended
-	if err := c.BindJSON(&newClass); err != nil {
-		c.String(http.StatusForbidden, "Debe enviar datos para poder agregar una clase.")
+	if err := c.BindJSON(&newTask); err != nil {
+		fmt.Println(err)
+		c.String(http.StatusForbidden, "Debe enviar datos para poder agregar una tarea.")
 		return
 	}
-	if newClass.Name == "" || newClass.Curso == "" || newClass.Color == "" || newClass.Token == "" {
+	if newTask.Clase == 0 || newTask.Titulo == "" || newTask.Description == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos obligatorios."})
 		return
 	}
 	//preparing statement
-	ClassN, err := db.Prepare("INSERT INTO `classes` (`id_class`, `class_name`, `class_profesor`, `class_curso`, `class_color`, `class_token`) VALUES (NULL, ?, ?, ?, ?, ?)")
+	ClassN, err := db.Prepare("INSERT INTO `tasks` (`id_task`, `id_class`, `title`, `description`, `created_on`, `deliver_until`) VALUES (NULL, ?, ?, ?, ?, ?);")
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
 	defer ClassN.Close()
 	//setting query output
-	_, err = ClassN.Exec(newClass.Name, session.Get("id_user"), newClass.Curso, newClass.Color, newClass.Token)
+	if newTask.Limite == "" {
+		_, err = ClassN.Exec(newTask.Clase, newTask.Titulo, newTask.Description, time.Now(), nil)
+		if err != nil {
+			fmt.Print(err.Error())
+			c.String(http.StatusForbidden, "La Tarea ya existe o los datos ingresados no son correctos.")
+		} else {
+			c.String(http.StatusAccepted, "Tarea creada.")
+		}
+	}
+	_, err = ClassN.Exec(newTask.Clase, newTask.Titulo, newTask.Description, time.Now(), newTask.Limite)
 	if err != nil {
 		fmt.Print(err.Error())
-		c.String(http.StatusForbidden, "La cuenta ya existe o los datos ingresados no son correctos.")
+		c.String(http.StatusForbidden, "La Tarea ya existe o los datos ingresados no son correctos.")
 	} else {
-		c.String(http.StatusAccepted, "Clase creada.")
+		c.String(http.StatusAccepted, "Tarea creada.")
 	}
 }
 
@@ -56,25 +65,51 @@ func getTasks(c *gin.Context) {
 	c.Header("Access-Control-Allow-Credentials", "true")
 	session := sessions.Default(c)
 
-	// Preparando la consulta SQL
-	tasks, err := db.Prepare("SELECT id_task, tasks.id_class, title, description, created_on, deliver_until FROM tasks INNER JOIN classes ON classes.id_class = tasks.id_class INNER JOIN class_users ON class_users.id_class = classes.id_class INNER JOIN users ON users.id_user = class_users.id_user WHERE users.id_user = ?")
-	if err != nil {
-		c.Status(505)
+	userType := session.Get("user_type")
+	userID := session.Get("id_user")
+
+	if userType == nil || userID == nil {
+		c.String(http.StatusUnauthorized, "Usuario no autenticado")
 		return
 	}
-	defer tasks.Close()
+	//had to define query
+	var query string
+	if userType == "alumno" {
+		query = `
+			SELECT id_task, tasks.id_class, title, description, created_on, deliver_until
+			FROM tasks
+			INNER JOIN classes ON classes.id_class = tasks.id_class
+			INNER JOIN class_users ON class_users.id_class = classes.id_class
+			INNER JOIN users ON users.id_user = class_users.id_user
+			WHERE users.id_user = ?`
+	} else if userType == "docente" {
+		query = `
+			SELECT id_task, tasks.id_class, title, description, created_on, deliver_until
+			FROM tasks
+			INNER JOIN classes ON classes.id_class = tasks.id_class
+			WHERE classes.class_profesor = ?`
+	} else {
+		c.String(http.StatusForbidden, "Tipo de usuario no válido")
+		return
+	}
 
-	var TaskList []Tasks
-	rows, err := tasks.Query(session.Get("id_user"))
+	tasksStmt, err := db.Prepare(query)
 	if err != nil {
-		rows.Close()
-		fmt.Println(err.Error())
-		c.String(http.StatusBadRequest, "Error al cargar los datos de clases.")
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al preparar la consulta:", err)
+		return
+	}
+	defer tasksStmt.Close()
+
+	rows, err := tasksStmt.Query(userID)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al ejecutar la consulta:", err)
 		return
 	}
 	defer rows.Close()
 
-	// Escanear las filas y convertir las fechas a time.Time
+	var TaskList []Tasks
 	for rows.Next() {
 		var Task Tasks
 		var createdOn []byte

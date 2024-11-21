@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -32,7 +33,9 @@ func setupRouter() *gin.Engine {
 
 	//submissions
 	r.GET("/submission", getSubmission)
+	r.GET("/submissions", getSubs)
 	r.POST("/submission", createSubmission)
+	r.PUT("/submission/:id_submission", updateSubmission)
 
 	//comments
 	r.GET("/comments", getComments)
@@ -65,5 +68,15 @@ func main() {
 	r.Run(":3000")
 	// panic(err.Error())
 	// }
+	db := database()
+
+	// Asegurarse de cerrar la conexión cuando main termine
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Println("Error al cerrar la conexión:", err)
+		} else {
+			fmt.Println("Conexión cerrada correctamente.")
+		}
+	}()
 
 }

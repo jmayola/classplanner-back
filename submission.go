@@ -20,6 +20,10 @@ type Submission struct {
 	Date         string `json:"submission_date" form:"submission_date"`
 	Calification string `json:"calification" form:"calification"`
 	Feedback     string `json:"feedback" form:"feedback"`
+	Username     string `json:"user_name"`
+	Lastname     string `json:"user_lastname"`
+	Alias        string `json:"user_alias"`
+	Photo        string `json:"user_photo"`
 }
 
 func createSubmission(c *gin.Context) {
@@ -34,7 +38,7 @@ func createSubmission(c *gin.Context) {
 
 	//preparing statement
 
-	SubM, err := db.Prepare("INSERT INTO `submissions` (`id_submission`, `id_user`, `id_task`, `submission_file`, `submission_comment`, `submission_date`, `calification`, `feedback`) VALUES (NULL, ?, ?, ?, ?, ?, NULL, NULL);")
+	SubM, err := db.Prepare("INSERT INTO `submissions` (`id_submission`, `id_user`, `id_task`, `submission_file`, `submission_comment`, `submission_date`) VALUES (NULL, ?, ?, ?, ?, ?);")
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
@@ -115,7 +119,6 @@ func getSubs(c *gin.Context) {
 	db := database()
 	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 	c.Header("Access-Control-Allow-Credentials", "true")
-	session := sessions.Default(c)
 	taskID := c.DefaultQuery("id_task", "")
 	if taskID == "" {
 		c.String(http.StatusBadRequest, "El ID de la tarea es obligatorio")
@@ -123,9 +126,9 @@ func getSubs(c *gin.Context) {
 	}
 	// Preparar la consulta SQL para obtener las entregas del usuario
 	query := `
-		SELECT id_submission, id_user, id_task, submission_file, submission_comment, submission_date, calification, feedback
-		FROM submissions
-		WHERE id_user = ? AND id_task = ?`
+		SELECT id_submission, submissions.id_user, id_task, submission_file, submission_comment, submission_date, calification, feedback,
+		us.user_name, us.user_lastname, us.user_alias, us.user_photo
+		FROM submissions INNER JOIN users us ON us.id_user=submissions.id_user WHERE id_task = ?`
 
 	// Preparar el statement SQL
 	submissionsStmt, err := db.Prepare(query)
@@ -137,7 +140,7 @@ func getSubs(c *gin.Context) {
 	defer submissionsStmt.Close()
 
 	// Ejecutar la consulta
-	rows, err := submissionsStmt.Query(session.Get("id_user"), taskID)
+	rows, err := submissionsStmt.Query(taskID)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		fmt.Println("Error al ejecutar la consulta:", err)
@@ -153,7 +156,7 @@ func getSubs(c *gin.Context) {
 		var submission Submission
 		var submissionDate []byte // Para almacenar la fecha como []byte antes de convertirla a string
 
-		if err := rows.Scan(&submission.ID, &submission.ID_user, &submission.ID_task, &submission.File, &submission.Comment, &submissionDate, &submission.Calification, &submission.Feedback); err != nil {
+		if err := rows.Scan(&submission.ID, &submission.ID_user, &submission.ID_task, &submission.File, &submission.Comment, &submissionDate, &submission.Calification, &submission.Feedback, &submission.Username, &submission.Lastname, &submission.Alias, &submission.Photo); err != nil {
 			fmt.Println("Error al escanear la fila:", err)
 			continue
 		}
@@ -170,4 +173,56 @@ func getSubs(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, submissions)
 	}
+}
+func updateSubmission(c *gin.Context) {
+	db := database()
+	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Header("Access-Control-Allow-Credentials", "true")
+
+	// Obtener el ID del envío desde los parámetros de la URL
+	submissionID := c.Param("id_submission")
+	if submissionID == "" {
+		c.String(http.StatusBadRequest, "El ID del envío es obligatorio")
+		return
+	}
+
+	// Obtener los datos del cuerpo de la solicitud
+	var updatedSubmission struct {
+		Comment      string `json:"submission_comment"`
+		File         string `json:"submission_file"`
+		Calification string `json:"calification"`
+		Feedback     string `json:"feedback"`
+	}
+
+	if err := c.BindJSON(&updatedSubmission); err != nil {
+		c.Status(http.StatusBadRequest)
+		fmt.Println("Error al analizar el JSON:", err)
+		return
+	}
+
+	// Preparar la consulta SQL para actualizar el envío
+	query := `
+		UPDATE submissions
+		SET submission_comment = ?, submission_file = ?, calification = ?, feedback = ?
+		WHERE id_submission = ?`
+
+	// Preparar el statement SQL
+	updateStmt, err := db.Prepare(query)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al preparar la consulta:", err)
+		return
+	}
+	defer updateStmt.Close()
+
+	// Ejecutar la consulta
+	_, err = updateStmt.Exec(updatedSubmission.Comment, updatedSubmission.File, updatedSubmission.Calification, updatedSubmission.Feedback, submissionID)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al ejecutar la actualización:", err)
+		return
+	}
+
+	// Responder con un mensaje de éxito
+	c.JSON(http.StatusOK, gin.H{"message": "Envío actualizado correctamente"})
 }
