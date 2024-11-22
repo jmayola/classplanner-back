@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type Tasks struct {
@@ -20,7 +22,13 @@ type Tasks struct {
 
 func createTask(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	var newTask Tasks
 	//getting data sended
@@ -45,23 +53,33 @@ func createTask(c *gin.Context) {
 		_, err = ClassN.Exec(newTask.Clase, newTask.Titulo, newTask.Description, time.Now(), nil)
 		if err != nil {
 			fmt.Print(err.Error())
+			ClassN.Close()
 			c.String(http.StatusForbidden, "La Tarea ya existe o los datos ingresados no son correctos.")
 		} else {
+			ClassN.Close()
 			c.String(http.StatusAccepted, "Tarea creada.")
 		}
 	}
 	_, err = ClassN.Exec(newTask.Clase, newTask.Titulo, newTask.Description, time.Now(), newTask.Limite)
 	if err != nil {
 		fmt.Print(err.Error())
+		ClassN.Close()
 		c.String(http.StatusForbidden, "La Tarea ya existe o los datos ingresados no son correctos.")
 	} else {
+		ClassN.Close()
 		c.String(http.StatusAccepted, "Tarea creada.")
 	}
 }
 
 func getTasks(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	session := sessions.Default(c)
 
@@ -131,6 +149,7 @@ func getTasks(c *gin.Context) {
 		}
 		TaskList = append(TaskList, Task)
 	}
-
+	tasksStmt.Close()
+	rows.Close()
 	c.JSON(http.StatusOK, TaskList)
 }

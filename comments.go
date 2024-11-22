@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type Comment struct {
@@ -20,7 +22,13 @@ type Comment struct {
 
 func createComment(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	var newComment Comment
 	session := sessions.Default(c)
@@ -49,7 +57,13 @@ func createComment(c *gin.Context) {
 func getComments(c *gin.Context) {
 	// Establecer la conexión a la base de datos
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	// Obtener el ID de la tarea desde los parámetros de la URL
 	taskID := c.DefaultQuery("id_task", "")

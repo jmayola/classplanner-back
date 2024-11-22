@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -9,6 +11,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 func setupRouter() *gin.Engine {
@@ -56,18 +59,31 @@ func main() {
 	r := setupRouter()
 	r.Use(CORSMiddleware())
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5173"}, // CORRECCIÓN: incluye el puerto correctamente con ":"
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},        // Métodos permitidos
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},        // Cabeceras permitidas
-		AllowCredentials: true,                                                       // Permite enviar credenciales (cookies, autenticación)
-		ExposeHeaders:    []string{"Content-Length", "Authorization"},                // Cabeceras expuestas
+		AllowOrigins:     []string{"https://classplanner.mayola.net.ar", "https://mayola.net.ar"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+		ExposeHeaders:    []string{"Content-Length", "Authorization"},
 		MaxAge:           12 * time.Hour,
 		// Duración de la preconsulta (preflight request)
 	}))
-	// if err := r.RunTLS(":30000", "fullchain.pem", "privkey.pem"); err != nil {
-	r.Run(":3000")
-	// panic(err.Error())
-	// }
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	state := os.Getenv("STATE")
+
+	// Iniciar el servidor HTTPS en el puerto 3000
+	if state != "development" {
+		certFile := "/etc/letsencrypt/live/mayola.net.ar/fullchain.pem"
+		keyFile := "/etc/letsencrypt/live/mayola.net.ar/privkey.pem"
+		if err := r.RunTLS(":30000", certFile, keyFile); err != nil {
+			log.Fatalf("Error al iniciar el servidor HTTPS: %s", err)
+		}
+	} else {
+		r.Run(":3000")
+	}
 	db := database()
 
 	// Asegurarse de cerrar la conexión cuando main termine

@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type Submission struct {
@@ -28,7 +30,13 @@ type Submission struct {
 
 func createSubmission(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	var submission Submission
 	session := sessions.Default(c)
@@ -58,15 +66,23 @@ func createSubmission(c *gin.Context) {
 	_, err = SubM.Exec(session.Get("id_user"), submission.ID_task, filename, submission.Comment, time.Now())
 	if err != nil {
 		fmt.Print(err.Error())
+		SubM.Close()
 		c.String(http.StatusForbidden, "No se puedo enviar la tarea")
 	} else {
+		SubM.Close()
 		c.String(http.StatusAccepted, "Tarea enviada.")
 	}
 }
 func getSubmission(c *gin.Context) {
 	// Conectar a la base de datos
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	session := sessions.Default(c)
 	taskID := c.DefaultQuery("id_task", "")
@@ -109,15 +125,23 @@ func getSubmission(c *gin.Context) {
 		submissions.Feedback = ""
 	}
 	if err != nil {
+		submissionsStmt.Close()
 		c.Status(http.StatusNoContent)
 		return
 	} else {
+		submissionsStmt.Close()
 		c.JSON(http.StatusOK, submissions)
 	}
 }
 func getSubs(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	taskID := c.DefaultQuery("id_task", "")
 	if taskID == "" {
@@ -169,24 +193,32 @@ func getSubs(c *gin.Context) {
 	}
 
 	if len(submissions) == 0 {
+		submissionsStmt.Close()
+		rows.Close()
 		c.JSON(http.StatusOK, "No se encontraron entregas.")
 	} else {
+		submissionsStmt.Close()
+		rows.Close()
 		c.JSON(http.StatusOK, submissions)
 	}
 }
 func updateSubmission(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 
-	// Obtener el ID del envío desde los parámetros de la URL
 	submissionID := c.Param("id_submission")
 	if submissionID == "" {
 		c.String(http.StatusBadRequest, "El ID del envío es obligatorio")
 		return
 	}
 
-	// Obtener los datos del cuerpo de la solicitud
 	var updatedSubmission struct {
 		Comment      string `json:"submission_comment"`
 		File         string `json:"submission_file"`
@@ -200,13 +232,11 @@ func updateSubmission(c *gin.Context) {
 		return
 	}
 
-	// Preparar la consulta SQL para actualizar el envío
 	query := `
 		UPDATE submissions
 		SET submission_comment = ?, submission_file = ?, calification = ?, feedback = ?
 		WHERE id_submission = ?`
 
-	// Preparar el statement SQL
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
@@ -215,14 +245,14 @@ func updateSubmission(c *gin.Context) {
 	}
 	defer updateStmt.Close()
 
-	// Ejecutar la consulta
 	_, err = updateStmt.Exec(updatedSubmission.Comment, updatedSubmission.File, updatedSubmission.Calification, updatedSubmission.Feedback, submissionID)
 	if err != nil {
+		updateStmt.Close()
 		c.Status(http.StatusInternalServerError)
 		fmt.Println("Error al ejecutar la actualización:", err)
 		return
 	}
 
-	// Responder con un mensaje de éxito
+	updateStmt.Close()
 	c.JSON(http.StatusOK, gin.H{"message": "Envío actualizado correctamente"})
 }

@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type Classes struct {
@@ -19,7 +21,13 @@ type Classes struct {
 
 func createClass(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	var newClass Classes
 	session := sessions.Default(c)
@@ -49,7 +57,13 @@ func createClass(c *gin.Context) {
 }
 func getClasses(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	//getting data sended
 	session := sessions.Default(c)
@@ -114,7 +128,13 @@ func getClasses(c *gin.Context) {
 }
 func joinClass(c *gin.Context) {
 	db := database()
-	c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
 	c.Header("Access-Control-Allow-Credentials", "true")
 	var class_token Classes
 	session := sessions.Default(c)
