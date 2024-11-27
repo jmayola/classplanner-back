@@ -24,6 +24,9 @@ func setupRouter() *gin.Engine {
 	r.Static("/uploads", "./uploads")
 
 	// in this section will be the methods with the directions, followed of functions that are in the files with their respective title.
+	//calendar
+	r.GET("/calendar", getCalendar)
+	r.GET("/calendar/:class_token", getCalendarWithToken)
 
 	//classes
 	r.GET("/classes", getClasses)

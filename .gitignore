@@ -1,3 +1,4 @@
 .env
 backclass
 dist/
+*.env
