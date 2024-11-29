@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -176,5 +177,82 @@ func joinClass(c *gin.Context) {
 		c.String(http.StatusForbidden, "La cuenta ingresada o la clase no exiten.")
 	} else {
 		c.String(http.StatusAccepted, "Has sido añadido a la clase.")
+	}
+}
+
+type UsersClass struct {
+	Name     string `json:"user_name"`
+	LastName string `json:"user_lastname"`
+	Photo    string `json:"user_photo"`
+}
+
+func getUsersFromClass(c *gin.Context) {
+	db := database()
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("No se han cargado las variables de entorno.")
+		panic(err.Error())
+	}
+	ORIGIN := os.Getenv("ORIGIN")
+	c.Header("Access-Control-Allow-Origin", ORIGIN)
+	c.Header("Access-Control-Allow-Credentials", "true")
+	session := sessions.Default(c)
+	class := c.DefaultQuery("id_class", "")
+	if class == "" {
+		c.String(http.StatusBadRequest, "El ID de la clase es obligatorio")
+		return
+	}
+	userType := session.Get("user_type")
+	userID := session.Get("id_user")
+	fmt.Println(userID, userType, class)
+	if userType == nil || userID == nil {
+		fmt.Println("sin permisos")
+		c.String(http.StatusUnauthorized, "Usuario no autenticado")
+		return
+	}
+	var query = `
+			SELECT DISTINCT users.user_name, users.user_lastname, users.user_photo
+			FROM classes
+			INNER JOIN class_users ON class_users.id_class = classes.id_class
+			INNER JOIN users ON users.id_user = class_users.id_user OR users.id_user = classes.class_profesor
+			WHERE classes.id_class = ?;`
+
+	UsClassStmt, err := db.Prepare(query)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al preparar la consulta:", err)
+		return
+	}
+	defer UsClassStmt.Close()
+
+	rows, err := UsClassStmt.Query(class)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		fmt.Println("Error al ejecutar la consulta:", err)
+		return
+	}
+	defer rows.Close()
+
+	var Userlist []UsersClass
+	for rows.Next() {
+		var list UsersClass
+		var photo sql.NullString
+		if err := rows.Scan(&list.Name, &list.LastName, &photo); err != nil {
+			fmt.Println("Error al escanear la fila:", err)
+			continue
+		}
+		list.Photo = photo.String
+		Userlist = append(Userlist, list)
+	}
+	UsClassStmt.Close()
+	rows.Close()
+	if len(Userlist) == 0 {
+		UsClassStmt.Close()
+		rows.Close()
+		c.JSON(http.StatusOK, "No se encontraron usuarios.")
+	} else {
+		UsClassStmt.Close()
+		rows.Close()
+		c.JSON(http.StatusOK, Userlist)
 	}
 }

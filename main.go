@@ -43,6 +43,7 @@ func setupRouter() *gin.Engine {
 	r.PUT("/submission/:id_submission", updateSubmission)
 
 	r.GET("/califications", getCalifications)
+	r.GET("/usersclass", getUsersFromClass)
 
 	//comments
 	r.GET("/comments", getComments)
