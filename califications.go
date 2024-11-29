@@ -12,8 +12,10 @@ import (
 )
 
 type Calification struct {
+	ID       string `json:"id_task"`
 	Title    string `json:"title"`
 	Calif    int    `json:"calification"`
+	IDuser   string `json:"id_user"`
 	Name     string `json:"user_name"`
 	LastName string `json:"user_lastname"`
 	Photo    string `json:"user_photo"`
@@ -44,7 +46,7 @@ func getCalifications(c *gin.Context) {
 		return
 	}
 	var query = `
-			SELECT title, calification, users.user_name, users.user_lastname,users.user_photo
+			SELECT tasks.id_task, title, calification, users.id_user, users.user_name, users.user_lastname,users.user_photo
 			FROM tasks
 			INNER JOIN classes ON classes.id_class = tasks.id_class
 			INNER JOIN submissions on submissions.id_task = tasks.id_task
@@ -71,7 +73,7 @@ func getCalifications(c *gin.Context) {
 	for rows.Next() {
 		var califi Calification
 		var photo sql.NullString
-		if err := rows.Scan(&califi.Title, &califi.Calif, &califi.Name, &califi.LastName, &photo); err != nil {
+		if err := rows.Scan(&califi.ID, &califi.Title, &califi.Calif, &califi.IDuser, &califi.Name, &califi.LastName, &photo); err != nil {
 			fmt.Println("Error al escanear la fila:", err)
 			continue
 		}
