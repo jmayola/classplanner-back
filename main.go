@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -25,6 +23,7 @@ func setupRouter() *gin.Engine {
 
 	// in this section will be the methods with the directions, followed of functions that are in the files with their respective title.
 	//calendar
+
 	r.GET("/calendar", getCalendar)
 	r.GET("/calendar/:class_token", getCalendarWithToken)
 
@@ -42,6 +41,8 @@ func setupRouter() *gin.Engine {
 	r.GET("/submissions", getSubs)
 	r.POST("/submission", createSubmission)
 	r.PUT("/submission/:id_submission", updateSubmission)
+
+	r.GET("/califications", getCalifications)
 
 	//comments
 	r.GET("/comments", getComments)
@@ -61,15 +62,6 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := setupRouter()
 	r.Use(CORSMiddleware())
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://classplanner.mayola.net.ar", "https://mayola.net.ar"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
-		ExposeHeaders:    []string{"Content-Length", "Authorization"},
-		MaxAge:           12 * time.Hour,
-		// Duración de la preconsulta (preflight request)
-	}))
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("No se han cargado las variables de entorno.")
