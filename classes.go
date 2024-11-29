@@ -184,6 +184,7 @@ type UsersClass struct {
 	Name     string `json:"user_name"`
 	LastName string `json:"user_lastname"`
 	Photo    string `json:"user_photo"`
+	Type     string `json:"user_type"`
 }
 
 func getUsersFromClass(c *gin.Context) {
@@ -204,14 +205,13 @@ func getUsersFromClass(c *gin.Context) {
 	}
 	userType := session.Get("user_type")
 	userID := session.Get("id_user")
-	fmt.Println(userID, userType, class)
 	if userType == nil || userID == nil {
 		fmt.Println("sin permisos")
 		c.String(http.StatusUnauthorized, "Usuario no autenticado")
 		return
 	}
 	var query = `
-			SELECT DISTINCT users.user_name, users.user_lastname, users.user_photo
+			SELECT DISTINCT users.user_name, users.user_lastname, users.user_photo, users.user_type
 			FROM classes
 			INNER JOIN class_users ON class_users.id_class = classes.id_class
 			INNER JOIN users ON users.id_user = class_users.id_user OR users.id_user = classes.class_profesor
@@ -237,7 +237,7 @@ func getUsersFromClass(c *gin.Context) {
 	for rows.Next() {
 		var list UsersClass
 		var photo sql.NullString
-		if err := rows.Scan(&list.Name, &list.LastName, &photo); err != nil {
+		if err := rows.Scan(&list.Name, &list.LastName, &photo, &list.Type); err != nil {
 			fmt.Println("Error al escanear la fila:", err)
 			continue
 		}
@@ -249,7 +249,7 @@ func getUsersFromClass(c *gin.Context) {
 	if len(Userlist) == 0 {
 		UsClassStmt.Close()
 		rows.Close()
-		c.JSON(http.StatusOK, "No se encontraron usuarios.")
+		c.Status(http.StatusNoContent)
 	} else {
 		UsClassStmt.Close()
 		rows.Close()
